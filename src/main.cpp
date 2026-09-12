@@ -60,6 +60,9 @@
 #include <QDateTime>
 #include <QSettings>
 #include <QStyleHints>
+#ifdef Q_OS_MACOS
+#include <mach-o/dyld.h>
+#endif
 #include <QDir>
 #include <QTemporaryDir>
 #include <QSaveFile>
@@ -1569,8 +1572,25 @@ int main(int argc, char **argv) {
         if (option == "--") break;
         if (option == "--test-subsonic" || option == "--test-jellyfin" || option == "--test-youtube-live" || option == "--test-youtube" || option == "--test-performance" || option == "--self-test" || option == "--test-tx6" || option == "--test-cd-deck" || option == "--test-cassette-deck" || option == "--test-turntable" || option == "--test-recorder" || option == "--test-media-ui" || option == "--test-artwork" || option == "--test-3d-lighting" || option == "--test-3d-ui" || option == "--test-3d-library" || option == "--test-import-ui" || option == "--test-library" || option == "--smoke-live"
             || option == "--verify-cider" || option == "--verify-cider-writes" || option == "--inspect-cider" || option == "--inspect-library") {
+#ifdef Q_OS_MACOS
+            uint32_t size = 0;
+            _NSGetExecutablePath(nullptr, &size);
+            QByteArray buffer(size, '\0');
+            if (_NSGetExecutablePath(buffer.data(), &size) != 0) return 1;
+            auto directory = QFileInfo(QFile::decodeName(buffer.constData())).absolutePath();
+            // Reach the sibling of spun.app rather than a path inside the bundle.
+            if (directory.endsWith(".app/Contents/MacOS"))
+                directory = QFileInfo(directory + "/../../..").absoluteFilePath();
+#else
             const auto executable = QFileInfo(QStringLiteral("/proc/self/exe")).symLinkTarget();
-            const auto diagnostics = QFile::encodeName(QFileInfo(executable).absolutePath() + "/spun-diagnostics");
+            const auto directory = QFileInfo(executable).absolutePath();
+#endif
+#ifdef Q_OS_MACOS
+            const auto diagnostics = QFile::encodeName(
+                directory + "/spun-diagnostics.app/Contents/MacOS/spun-diagnostics");
+#else
+            const auto diagnostics = QFile::encodeName(directory + "/spun-diagnostics");
+#endif
             execv(diagnostics.constData(), argv);
             std::cerr << "Build diagnostics with scripts/build.sh -DBUILD_TESTING=ON before running checks.\n";
             return 1;

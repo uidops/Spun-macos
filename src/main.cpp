@@ -58,6 +58,8 @@
 #include <QRegion>
 #include <QFile>
 #include <QDateTime>
+#include <QSettings>
+#include <QStyleHints>
 #include <QDir>
 #include <QTemporaryDir>
 #include <QSaveFile>
@@ -1599,6 +1601,14 @@ int main(int argc, char **argv) {
     QSurfaceFormat::setDefaultFormat(QQuick3D::idealSurfaceFormat());
 #endif
     const qint64 applicationReady = startup.elapsed();
+#ifdef Q_OS_MACOS
+    // macOS restricts Tab to text controls unless Full Keyboard Access is on.
+    // Spun's keyboard help documents Tab reaching every control, so opt in.
+    QGuiApplication::styleHints()->setTabFocusBehavior(Qt::TabFocusAllControls);
+#endif
+    // The music APIs reopen QSettings().fileName() as INI; macOS would otherwise
+    // default to a plist and read back nothing of what they wrote.
+    QSettings::setDefaultFormat(QSettings::IniFormat);
     app.setApplicationName("spun"); app.setApplicationDisplayName("Spun");
     app.setOrganizationName("Spun"); app.setApplicationVersion("0.1.0");
     app.setDesktopFileName("spun"); app.setWindowIcon(QIcon(":/assets/spun-window.png"));
